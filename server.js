@@ -29,6 +29,6 @@ app.get('/api/users', authMiddleware, async (req, res) => {
   res.json(users);
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server is running at http://localhost:${PORT}`);
 });
