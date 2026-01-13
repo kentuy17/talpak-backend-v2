@@ -1,8 +1,15 @@
 const express = require('express');
 const mongoose = require('mongoose');
-const authRoutes = require('./routes/auth');
 const authMiddleware = require('./middleware/auth');
-const User = require('./models/User');
+
+const authRoutes = require('./routes/auth');
+const userRoutes = require('./routes/user');
+const gameEventRoutes = require('./routes/gameEvents');
+const fightRoutes = require('./routes/fights');
+const betHistoryRoutes = require('./routes/betHistory');
+
+
+
 
 const app = express();
 app.use(express.json());
@@ -15,7 +22,19 @@ mongoose.connect('mongodb://localhost:27017/talpakdb');
 // Routes
 app.use('/api/auth', authRoutes);
 
-// Protected route example
+// user routes
+app.use('/api/users', userRoutes);
+
+// game events routes
+app.use('/api/game-events', gameEventRoutes);
+
+// fight routes
+app.use('/api/fights', fightRoutes);
+
+// bet history routes
+app.use('/api/bet-history', betHistoryRoutes);
+
+// Protected route exampleconst userRoutes = require('./routes/users');
 app.get('/api/protected', authMiddleware, (req, res) => {
   res.json({
     message: 'Access granted to protected route',
@@ -23,11 +42,6 @@ app.get('/api/protected', authMiddleware, (req, res) => {
   });
 });
 
-// User routes (with auth)
-app.get('/api/users', authMiddleware, async (req, res) => {
-  const users = await User.find().select('-password');
-  res.json(users);
-});
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server is running at http://localhost:${PORT}`);

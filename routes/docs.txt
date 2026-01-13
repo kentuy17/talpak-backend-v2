@@ -1,0 +1,30 @@
+// Get all events
+GET / api / game - events
+Headers: { Authorization: 'Bearer <your-jwt-token>' }
+
+// Get active event
+GET / api / game - events / active
+Headers: { Authorization: 'Bearer <your-jwt-token>' }
+
+// Create event
+POST / api / game - events
+Headers: { Authorization: 'Bearer <your-jwt-token>' }
+Body: {
+  "eventName": "Cockfighting Championship",
+    "eventDate": "2024-01-15T10:00:00Z",
+      "location": "Arena A"
+}
+
+// Activate event
+PATCH / api / game - events / 65a1b2c3d4e5f6g7h8i9j0k1 / activate
+Headers: { Authorization: 'Bearer <your-jwt-token>' }
+
+// Update event
+// PUT / api / game - events / 65a1b2c3d4e5f6g7h8i9j0k1
+Headers: { Authorization: 'Bearer <your-jwt-token>' }
+Body: {
+  "eventName": "Updated Event Name",
+  "eventDate": "2024-01-20T10:00:00Z",
+  "location": "Arena B",
+  "status": "completed"
+}
