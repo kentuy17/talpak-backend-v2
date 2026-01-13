@@ -1,3 +1,5 @@
+require('dotenv').config()
+
 const express = require('express');
 const mongoose = require('mongoose');
 const authMiddleware = require('./middleware/auth');
@@ -6,18 +8,16 @@ const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/user');
 const gameEventRoutes = require('./routes/gameEvents');
 const fightRoutes = require('./routes/fights');
-const betHistoryRoutes = require('./routes/betHistory');
-
-
-
+const betHistoryRoutes = require('./routes/betHistory')
 
 const app = express();
 app.use(express.json());
 
 const PORT = process.env.PORT || 3000;
+const MONGODB_URI = process.env.MONGODB_URI
 
 // MongoDB Connection
-mongoose.connect('mongodb://localhost:27017/talpakdb');
+mongoose.connect(MONGODB_URI);
 
 // Routes
 app.use('/api/auth', authRoutes);

@@ -1,5 +1,7 @@
+require('dotenv').config(); // Must be the first line
+
 const jwt = require('jsonwebtoken');
-const JWT_SECRET = 'talpak2026';
+const JWT_SECRET = process.env.JWT_SECRET || 'secret';
 
 const authMiddleware = (req, res, next) => {
   try {
@@ -15,7 +17,8 @@ const authMiddleware = (req, res, next) => {
     req.user = decoded;
     next();
   } catch (error) {
-    res.status(401).json({ message: 'Token is invalid or expired' });
+    res.status(401).json({ error, token: JWT_SECRET })
+    // res.status(401).json({ message: 'Token is invalid or expired' });
   }
 };
 

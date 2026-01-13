@@ -46,7 +46,7 @@ const fightSchema = new mongoose.Schema({
     type: Date,
     required: false
   }
-}, { timestamps: true });
+}, { timestamps: true, toJSON: { getters: true }, toObject: { getters: true } });
 
 const counterSchema = new mongoose.Schema({
   _id: { type: String, required: true }, // The name of the collection/sequence

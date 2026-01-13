@@ -18,11 +18,15 @@ const betHistorySchema = new mongoose.Schema({
   },
   amount: {
     type: Number,
+    get: v => (v / 100).toFixed(2),
+    set: v => Math.round(v * 100),
     required: true,
     min: 0
   },
   payout: {
     type: Number,
+    get: v => (v / 100).toFixed(2),
+    set: v => Math.round(v * 100),
     required: false,
     default: 0
   },
@@ -35,7 +39,7 @@ const betHistorySchema = new mongoose.Schema({
     type: Number,
     required: true
   }
-}, { timestamps: true });
+}, { timestamps: true, toJSON: { getters: true }, toObject: { getters: true } });
 
 // Index for efficient queries
 betHistorySchema.index({ fightId: 1, userId: 1 });
