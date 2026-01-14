@@ -4,6 +4,9 @@ const authMiddleware = require('../middleware/auth');
 
 const router = express.Router();
 
+// services
+const { processBetsForFight } = require('../services/betService');
+
 // Apply auth middleware to all routes
 router.use(authMiddleware);
 
@@ -121,6 +124,65 @@ router.patch('/:id/status', async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ message: 'Error updating fight status', error });
+  }
+});
+
+// Declare fight winner and create next fight
+router.patch('/declare-winner', async (req, res) => {
+  try {
+    const { fightId, winner, status } = req.body;
+
+    // Validate winner
+    const validWinners = ['meron', 'wala', 'draw', 'cancelled'];
+    if (!validWinners.includes(winner)) {
+      return res.status(400).json({ message: 'Invalid winner value' });
+    }
+
+    // Validate status
+    const validStatuses = ['completed', 'cancelled'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ message: 'Invalid status value' });
+    }
+
+    // Find the fight
+    const fight = await Fight.findById(fightId);
+    if (!fight) {
+      return res.status(404).json({ message: 'Fight not found' });
+    }
+
+    // Update fight with winner and status
+    fight.winner = winner;
+    fight.status = status;
+    fight.endTime = new Date()
+    await fight.save();
+
+    const result = await processBetsForFight(fightId);
+    if (result.error) {
+      return res.status(500).json({ message: 'Error processing bets', error: result.error });
+    }
+
+    // Create next fight
+    const lastFight = await Fight.findOne({ eventId: fight.eventId }).sort({ fightNumber: -1 });
+    const nextFightNumber = lastFight ? lastFight.fightNumber + 1 : 1;
+
+    const nextFight = new Fight({
+      eventId: fight.eventId,
+      fightNumber: nextFightNumber,
+      meron: 0,
+      wala: 0,
+      status: 'waiting',
+      createdBy: req.user.userId
+    });
+
+    await nextFight.save();
+
+    res.status(200).json({
+      message: 'Fight winner declared successfully and next fight created',
+      completedFight: fight,
+      nextFight
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error declaring fight winner', error });
   }
 });
 

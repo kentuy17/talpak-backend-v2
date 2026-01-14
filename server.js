@@ -9,6 +9,7 @@ const userRoutes = require('./routes/user');
 const gameEventRoutes = require('./routes/gameEvents');
 const fightRoutes = require('./routes/fights');
 const betHistoryRoutes = require('./routes/betHistory')
+const runnerRoutes = require('./routes/runner')
 
 const app = express();
 app.use(express.json());
@@ -33,6 +34,9 @@ app.use('/api/fights', fightRoutes);
 
 // bet history routes
 app.use('/api/bet-history', betHistoryRoutes);
+
+// runner routes
+app.use('/api/runners', runnerRoutes);
 
 // Protected route exampleconst userRoutes = require('./routes/users');
 app.get('/api/protected', authMiddleware, (req, res) => {

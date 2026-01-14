@@ -73,7 +73,8 @@ router.post('/login', async (req, res) => {
         id: user._id,
         username: user.username,
         tellerNo: user.tellerNo,
-        role: user.role
+        role: user.role,
+        credits: user.credits
       }
     });
   } catch (error) {

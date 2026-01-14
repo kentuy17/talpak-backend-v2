@@ -30,6 +30,19 @@ router.get('/:id', async (req, res) => {
   }
 });
 
+// Get user credits only
+router.get('/:id/credits', async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id).select('credits');
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    res.json({ credits: user.credits });
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching user credits', error });
+  }
+});
+
 // Insert user
 router.post('/', async (req, res) => {
   try {

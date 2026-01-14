@@ -1,0 +1,43 @@
+const mongoose = require('mongoose');
+
+const runnerSchema = new mongoose.Schema({
+  runnerId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  tellerId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  amount: {
+    type: Number,
+    required: true,
+    min: 0,
+    get: function (v) {
+      return Math.round(v * 100) / 100;
+    },
+    set: function (v) {
+      return Math.round(v * 100) / 100;
+    }
+  },
+  transactionType: {
+    type: String,
+    enum: ['remit', 'topup'],
+    required: true
+  },
+  status: {
+    type: String,
+    enum: ['pending', 'completed', 'cancelled'],
+    default: 'pending'
+  }
+}, { timestamps: true });
+
+// Index for efficient queries
+runnerSchema.index({ runnerId: 1, createdAt: -1 });
+runnerSchema.index({ tellerId: 1, createdAt: -1 });
+runnerSchema.index({ transactionType: 1 });
+runnerSchema.index({ status: 1 });
+
+module.exports = mongoose.model('Runner', runnerSchema);

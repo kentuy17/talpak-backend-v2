@@ -37,6 +37,7 @@ const betHistorySchema = new mongoose.Schema({
   },
   odds: {
     type: Number,
+    default: 1,
     required: true
   }
 }, { timestamps: true, toJSON: { getters: true }, toObject: { getters: true } });

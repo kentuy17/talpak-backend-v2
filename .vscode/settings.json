@@ -1,5 +1,6 @@
 {
   "Codegeex.RepoIndex": true,
   "Codegeex.CommitMessage.LanguagePreference": "English",
-  "Codegeex.GenerationPreference": "block"
+  "Codegeex.GenerationPreference": "block",
+  "postman.settings.dotenv-detection-notification-visibility": false
 }

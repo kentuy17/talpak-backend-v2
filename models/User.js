@@ -25,6 +25,17 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  credits: {
+    type: Number,
+    default: 0,
+    min: 0,
+    get: function(v) {
+      return Math.round(v * 100) / 100;
+    },
+    set: function(v) {
+      return Math.round(v * 100) / 100;
+    }
+  },
 }, { timestamps: true });
 
 // Hash password before saving
