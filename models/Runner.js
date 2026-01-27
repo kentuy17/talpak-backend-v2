@@ -4,7 +4,7 @@ const runnerSchema = new mongoose.Schema({
   runnerId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true
+    required: false
   },
   tellerId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -29,13 +29,13 @@ const runnerSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['pending', 'completed', 'cancelled'],
+    enum: ['pending', 'processing', 'completed', 'cancelled'],
     default: 'pending'
   }
 }, { timestamps: true });
 
 // Index for efficient queries
-runnerSchema.index({ runnerId: 1, createdAt: -1 });
+runnerSchema.index({ runnerId: 1, createdAt: -1 }, { sparse: true }); // Sparse index allows null values
 runnerSchema.index({ tellerId: 1, createdAt: -1 });
 runnerSchema.index({ transactionType: 1 });
 runnerSchema.index({ status: 1 });

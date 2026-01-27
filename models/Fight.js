@@ -1,5 +1,7 @@
 const mongoose = require('mongoose');
 
+const COMMISSION = 5
+
 const fightSchema = new mongoose.Schema({
   eventId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -54,6 +56,13 @@ const counterSchema = new mongoose.Schema({
 });
 const Counter = mongoose.model('Counter', counterSchema);
 
+const percentage = (side, totalSum) => {
+  if (side == 0) return parseFloat(0).toFixed(2);
+  // console.log(side, 'side');
+  const comm = (totalSum) => (totalSum * Number.parseFloat(COMMISSION)) / 100;
+  const win = totalSum - comm(totalSum);
+  return parseFloat((win / parseInt(side)) * 100).toFixed(2);
+};
 
 // Index for efficient queries
 fightSchema.index({ eventId: 1, fightNumber: 1 }, { unique: true });
@@ -62,17 +71,39 @@ fightSchema.index({ eventId: 1, fightNumber: 1 }, { unique: true });
 
 // Virtual field for calculating the total amount of money bet on the fight
 fightSchema.virtual('totalAmount').get(function () {
-  return this.meron + this.wala;
+  const vMeron = parseInt(this.meron)
+  const vWala = parseInt(this.wala)
+  return vMeron + vWala;
 });
 
 // Virtual field for calculating the percentage of money bet on meron
 fightSchema.virtual('percentageMeron').get(function () {
-  return (this.meron / this.totalAmount) * 100;
+  const vMeron = parseInt(this.meron)
+  // const vWala = parseInt(this.wala)
+  // const totalSum = vMeron + vWala
+  // console.log({ totalSum: this.totalAmount, fightNum: this.fightNumber });
+  const percent = percentage(vMeron, this.totalAmount)
+  console.log(percent, 'meronPercent');
+
+  return percent;
 });
 
 // Virtual field for calculating the percentage of money bet on wala
 fightSchema.virtual('percentageWala').get(function () {
-  return (this.wala / this.totalAmount) * 100;
+  // const vMeron = parseInt(this.meron)
+  const vWala = parseInt(this.wala)
+  // const totalSum = vMeron + vWala
+  const percent = percentage(vWala, this.totalAmount);
+  console.log(percent, 'walaPercent');
+
+  return percent
+})
+
+// Virtual field to get the winner of the previous fight
+fightSchema.virtual('previousFightWinner').get(function () {
+  // This is a synchronous virtual field that returns a placeholder
+  // The actual data should be populated in the query
+  return null;
 })
 
 

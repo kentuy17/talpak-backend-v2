@@ -39,7 +39,12 @@ const betHistorySchema = new mongoose.Schema({
     type: Number,
     default: 1,
     required: true
+  },
+  is_paid: {
+    type: Boolean,
+    default: false
   }
+
 }, { timestamps: true, toJSON: { getters: true }, toObject: { getters: true } });
 
 // Index for efficient queries

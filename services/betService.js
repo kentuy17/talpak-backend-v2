@@ -16,9 +16,9 @@ async function processBetsForFight(fightId) {
     }
 
     // Get all pending bets for this fight
-    const bets = await BetHistory.find({ 
-      fightId: fightId, 
-      status: 'pending' 
+    const bets = await BetHistory.find({
+      fightId: fightId,
+      status: 'pending'
     });
 
     if (bets.length === 0) {
@@ -42,11 +42,11 @@ async function processBetsForFight(fightId) {
       if (winner === 'draw' || winner === 'cancelled') {
         // For draw or cancelled, return the bet amount
         payout = bet.amount;
-        status = 'cancelled';
+        status = winner;
       } else if (winner === bet.betSide) {
         // Winning bet: calculate payout based on odds
         // Payout = bet amount * odds
-        payout = bet.amount * bet.odds;
+        payout = bet.amount * (bet.odds / 100);
         status = 'won';
       } else {
         // Losing bet: no payout

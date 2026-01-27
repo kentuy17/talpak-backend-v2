@@ -1,11 +1,14 @@
+require('dotenv');
 const express = require('express');
 const Fight = require('../models/Fight');
 const authMiddleware = require('../middleware/auth');
+const { getIO } = require('../socket/socketServer');
 
 const router = express.Router();
 
 // services
 const { processBetsForFight } = require('../services/betService');
+const { processFightClosure } = require('../services/fightService');
 
 // Apply auth middleware to all routes
 router.use(authMiddleware);
@@ -21,6 +24,24 @@ router.get('/event/:eventId', async (req, res) => {
     res.json(fights);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching fights', error });
+  }
+});
+
+// Get current fight by eventId (sorted by fightNumber desc)
+router.get('/current/:eventId', async (req, res) => {
+  try {
+    const { eventId } = req.params;
+    const fights = await Fight.find({ eventId })
+      .sort({ fightNumber: -1 });
+
+    if (!fights || fights.length === 0) {
+      return res.status(404).json({ message: 'No fights found for this event' });
+    }
+
+    // Return the most recent fight (highest fightNumber)
+    res.json(fights[0]);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching current fight', error });
   }
 });
 
@@ -64,10 +85,19 @@ router.post('/', async (req, res) => {
       meron,
       wala,
       status: 'waiting',
-      createdBy: req.user.userId
+      createdBy: req.user.userId,
     });
 
+    // fight['previousFightWinner'] 
     await fight.save();
+
+    // Emit new fight via Socket.IO
+    const io = getIO();
+
+    // Create a plain object with all fight data including virtual fields
+
+    // fightData['previousFightWinner'] = lastFight ? lastFight.winner : null;
+    io.emit('fight_update', fight);
 
     res.status(201).json({
       message: 'Fight created successfully',
@@ -116,6 +146,17 @@ router.patch('/:id/status', async (req, res) => {
 
     if (!fight) {
       return res.status(404).json({ message: 'Fight not found' });
+    }
+
+    // Emit fight update via Socket.IO
+    const io = getIO();
+
+    if (status == 'closed') {
+      const processedFight = await processFightClosure(req.params.id);
+      console.log(processedFight);
+      io.emit('fight_update', processedFight);
+    } else {
+      io.emit('fight_update', fight);
     }
 
     res.json({
@@ -171,10 +212,16 @@ router.patch('/declare-winner', async (req, res) => {
       meron: 0,
       wala: 0,
       status: 'waiting',
-      createdBy: req.user.userId
+      createdBy: req.user.userId,
     });
 
     await nextFight.save();
+
+    // Emit fight updates via Socket.IO
+    const nextData = { ...nextFight.toObject(), previousFightWinner: lastFight ? lastFight.winner : null };
+    const io = getIO();
+    io.emit('fight_update', fight);
+    io.emit('fight_update', nextData);
 
     res.status(200).json({
       message: 'Fight winner declared successfully and next fight created',

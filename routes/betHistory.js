@@ -1,6 +1,7 @@
 const express = require('express');
 const BetHistory = require('../models/BetHistory');
 const authMiddleware = require('../middleware/auth');
+const { getIO } = require('../socket/socketServer');
 
 const router = express.Router();
 
@@ -35,6 +36,22 @@ router.get('/', async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ message: 'Error fetching bet history', error });
+  }
+});
+
+router.get('/:id', async (req, res) => {
+  try {
+    const bet = await BetHistory.findById(req.params.id)
+      .populate('fightId', 'fightNumber meron wala status')
+      .populate('userId', 'username tellerNo role');
+
+    if (!bet) {
+      return res.status(404).json({ message: 'Bet not found' });
+    }
+
+    res.json(bet);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching bet', error });
   }
 });
 
@@ -215,6 +232,9 @@ router.post('/add', async (req, res) => {
 
     // Save the bet
     await bet.save();
+
+    const io = getIO();
+    io.emit('bet_added', bet);
 
     res.status(201).json({
       message: 'Bet placed successfully',

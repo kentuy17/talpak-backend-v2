@@ -2,7 +2,9 @@ require('dotenv').config()
 
 const express = require('express');
 const mongoose = require('mongoose');
+const http = require('http');
 const authMiddleware = require('./middleware/auth');
+const { initializeSocketServer } = require('./socket/socketServer');
 
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/user');
@@ -10,9 +12,16 @@ const gameEventRoutes = require('./routes/gameEvents');
 const fightRoutes = require('./routes/fights');
 const betHistoryRoutes = require('./routes/betHistory')
 const runnerRoutes = require('./routes/runner')
+const guestRoutes = require('./routes/guests')
 
 const app = express();
 app.use(express.json());
+
+// Create HTTP server
+const server = http.createServer(app);
+
+// Initialize Socket.IO
+const io = initializeSocketServer(server);
 
 const PORT = process.env.PORT || 3000;
 const MONGODB_URI = process.env.MONGODB_URI
@@ -46,7 +55,10 @@ app.get('/api/protected', authMiddleware, (req, res) => {
   });
 });
 
+// Guest route
+app.use('/api/guests', guestRoutes);
 
-app.listen(PORT, '0.0.0.0', () => {
+server.listen(PORT, '0.0.0.0', () => {
   console.log(`Server is running at http://localhost:${PORT}`);
+  console.log(`Socket.IO server is ready`);
 });

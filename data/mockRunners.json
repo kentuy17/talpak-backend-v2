@@ -1,0 +1,83 @@
+[
+  {
+    "runnerId": "507f1f77bcf86cd799439011",
+    "tellerId": "507f1f77bcf86cd799439012",
+    "amount": 1000.00,
+    "transactionType": "remit",
+    "status": "pending",
+    "createdAt": "2024-01-15T08:00:00.000Z",
+    "updatedAt": "2024-01-15T08:00:00.000Z"
+  },
+  {
+    "runnerId": "507f1f77bcf86cd799439011",
+    "tellerId": "507f1f77bcf86cd799439012",
+    "amount": 500.50,
+    "transactionType": "topup",
+    "status": "completed",
+    "createdAt": "2024-01-15T09:00:00.000Z",
+    "updatedAt": "2024-01-15T09:15:00.000Z"
+  },
+  {
+    "runnerId": "507f1f77bcf86cd799439015",
+    "tellerId": "507f1f77bcf86cd799439012",
+    "amount": 750.25,
+    "transactionType": "remit",
+    "status": "cancelled",
+    "createdAt": "2024-01-15T11:00:00.000Z",
+    "updatedAt": "2024-01-15T11:30:00.000Z"
+  },
+  {
+    "runnerId": "507f1f77bcf86cd799439016",
+    "tellerId": "507f1f77bcf86cd799439017",
+    "amount": 3200.00,
+    "transactionType": "topup",
+    "status": "completed",
+    "createdAt": "2024-01-15T12:00:00.000Z",
+    "updatedAt": "transactionType"
+  },
+  {
+    "runnerId": "507f1f77bcf86cd799439019",
+    "tellerId": "507f1f77bcf86cd799439014",
+    "amount": 4500.99,
+    "transactionType": "topup",
+    "status": "completed",
+    "createdAt": "2024-01-15T14:00:00.000Z",
+    "updatedAt": "2024-01-15T14:20:00.000Z"
+  },
+  {
+    "runnerId": "507f1f77bcf86cd799439020",
+    "tellerId": "507f1f77bcf86cd799439017",
+    "amount": 1800.50,
+    "transactionType": "remit",
+    "status": "cancelled",
+    "createdAt": "2024-01-15T15:00:00.00Z",
+    "updatedAt": "2024-01-15T15:30:00.000Z"
+  },
+  {
+    "runnerId": "507f1f77bcf86cd799439021",
+    "tellerId": "507f1f77bcf86cd799439012",
+    "amount": 950.75,
+    "transactionType": "topup",
+    "status": "pending",
+    "createdAt": "2024-01-15T16:00:00.000Z",
+    "updatedAt": "2024-01-15T16:00:00.000Z"
+  },
+  {
+    "runnerId": "507f1f77bcf86cd799439022",
+    "tellerId": "507f1f77bcf86cd799439014",
+    "amount": 2100.25,
+    "transactionType": "remit",
+    "status": "completed",
+    "createdAt": "2024-01-15T17:00:00.000Z",
+    "updatedAt": "2024-01-15T17:45:00.000Z"
+  },
+  {
+    "runnerId": "507f1f77bcf86cd799439023",
+    "tellerId": "507f1f77bcf86cd799439017",
+    "amount": 1500.00,
+    "transactionType": "topup",
+    "status": "pending",
+    "createdAt": "2024-01-15T18:00:00.000Z",
+    "updatedAt": "2024-01-15T18:00:00.000Z"
+  }
+]
