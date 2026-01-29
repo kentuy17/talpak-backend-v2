@@ -43,11 +43,16 @@ const betHistorySchema = new mongoose.Schema({
   is_paid: {
     type: Boolean,
     default: false
+  },
+  betCode: {
+    type: String,
+    sparse: true
   }
 
 }, { timestamps: true, toJSON: { getters: true }, toObject: { getters: true } });
 
 // Index for efficient queries
 betHistorySchema.index({ fightId: 1, userId: 1 });
+betHistorySchema.index({ betCode: 1 }, { sparse: true });
 
 module.exports = mongoose.model('BetHistory', betHistorySchema);

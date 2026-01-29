@@ -55,6 +55,24 @@ router.get('/:id', async (req, res) => {
   }
 });
 
+// Get bet by bet code
+router.get('/code/:betCode', async (req, res) => {
+  try {
+    const { betCode } = req.params;
+    const bet = await BetHistory.findOne({ betCode })
+      .populate('fightId', 'fightNumber meron wala status')
+      .populate('userId', 'username tellerNo role');
+
+    if (!bet) {
+      return res.status(404).json({ message: 'Bet not found' });
+    }
+
+    res.json(bet);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching bet by code', error });
+  }
+});
+
 // Get bets by fight ID with pagination
 router.get('/fight/:fightId', async (req, res) => {
   try {
@@ -163,7 +181,7 @@ router.get('/user/:userId/event/:eventId', async (req, res) => {
 // Create new bet
 router.post('/add', async (req, res) => {
   try {
-    const { fightId, betSide, amount, odds } = req.body;
+    const { fightId, betSide, amount, odds, bet_code } = req.body;
 
     // Verify fight exists and is in valid status
     const Fight = require('../models/Fight');
@@ -201,7 +219,8 @@ router.post('/add', async (req, res) => {
       betSide,
       amount,
       odds: odds ?? 1,
-      status: 'pending'
+      status: 'pending',
+      betCode: bet_code || null
     });
 
     // Deduct credits using findByIdAndUpdate
