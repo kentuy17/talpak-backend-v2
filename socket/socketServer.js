@@ -9,10 +9,12 @@ let io;
 function initializeSocketServer(httpServer) {
   io = new Server(httpServer, {
     cors: {
-      origin: process.env.CLIENT_URL || '*',
+      origin: '*',
       methods: ['GET', 'POST'],
       credentials: true
-    }
+    },
+    transports: ['websocket', 'polling'], // Enable both transports
+    allowEIO3: true // Compatibility with older clients
   });
 
   // Middleware for authentication (optional)
@@ -47,6 +49,15 @@ function initializeSocketServer(httpServer) {
 
     socket.on('bet-placed', (data) => {
       // Broadcast new bet to all clients in the fight's room
+      console.log(data, 'bet-placed');
+
+      io.to(data.fightId).emit('new-bet', data);
+    });
+
+    socket.on('bet_added', (data) => {
+      // Broadcast new bet to all clients in the fight's room
+      console.log(data, 'bet-placed');
+
       io.to(data.fightId).emit('new-bet', data);
     });
 
