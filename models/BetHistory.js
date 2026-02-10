@@ -32,7 +32,7 @@ const betHistorySchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['pending', 'won', 'lost', 'cancelled'],
+    enum: ['pending', 'won', 'lost', 'cancelled', 'draw'],
     default: 'pending'
   },
   odds: {

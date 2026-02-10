@@ -216,7 +216,7 @@ router.post('/topup', async (req, res) => {
 // Remittance from teller
 router.post('/remittance', async (req, res) => {
   try {
-    const { tellerId, amount } = req.body;
+    const { amount } = req.body;
 
     // Validate amount
     if (!amount || amount <= 0) {
@@ -229,11 +229,11 @@ router.post('/remittance', async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    // Get the teller user
-    const teller = await User.findById(tellerId);
-    if (!teller) {
-      return res.status(404).json({ message: 'Teller not found' });
-    }
+    // // Get the teller user
+    const teller = await User.findById(req.user.userId);
+    // if (!teller) {
+    //   return res.status(404).json({ message: 'Teller not found' });
+    // }
 
     // Check if teller has valid role
     const validRoles = ['cashinTeller', 'cashoutTeller', 'admin'];
@@ -252,8 +252,8 @@ router.post('/remittance', async (req, res) => {
 
     // Create transaction record
     const transaction = new Runner({
-      runnerId: req.user.userId,
-      tellerId,
+      runnerId: null, // Runner will be assigned later
+      tellerId: teller._id,
       amount,
       transactionType: 'remit',
       status: 'pending'
@@ -261,7 +261,7 @@ router.post('/remittance', async (req, res) => {
 
     // Deduct credits from teller
     const updatedTeller = await User.findByIdAndUpdate(
-      tellerId,
+      teller._id,
       { $inc: { credits: -amount } },
       { new: true, runValidators: true }
     );
