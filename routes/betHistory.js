@@ -290,4 +290,39 @@ router.patch('/:id/status', async (req, res) => {
   }
 });
 
+// Settle bet payout and mark bet as paid
+router.patch('/:id/settle', async (req, res) => {
+  try {
+    const bet = await BetHistory.findById(req.params.id)
+      .populate('fightId', 'fightNumber meron wala status')
+      .populate('userId', 'username tellerNo role');
+
+    if (!bet) {
+      return res.status(404).json({ message: 'Bet not found' });
+    }
+
+    if (!['won', 'draw'].includes(bet.status)) {
+      return res.status(400).json({
+        message: 'Only bets with status "won" or "draw" can be settled'
+      });
+    }
+
+    if (bet.is_paid) {
+      return res.status(400).json({
+        message: 'Bet has already been settled'
+      });
+    }
+
+    bet.is_paid = true;
+    await bet.save();
+
+    res.json({
+      message: 'Bet settled successfully',
+      bet
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error settling bet', error });
+  }
+});
+
 module.exports = router;
