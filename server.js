@@ -5,6 +5,7 @@ const mongoose = require('mongoose');
 const http = require('http');
 const authMiddleware = require('./middleware/auth');
 const { initializeSocketServer } = require('./socket/socketServer');
+const listEndpoints = require('express-list-endpoints');
 
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/user');
@@ -54,6 +55,9 @@ app.get('/api/protected', authMiddleware, (req, res) => {
     user: req.user
   });
 });
+
+// Log all endpoints
+console.log(listEndpoints(app));
 
 // Guest route
 app.use('/api/guests', guestRoutes);
