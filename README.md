@@ -136,8 +136,13 @@ The server will start on `http://localhost:3000` (or your configured PORT).
 
 - `GET /api/bet-history` - Get all bet history (protected)
 - `GET /api/bet-history/:id` - Get bet by ID (protected)
-- `POST /api/bet-history` - Place a new bet (protected)
+- `GET /api/bet-history/code/:betCode` - Get bet by bet code (protected)
+- `POST /api/bet-history/add` - Place a new bet (protected)
 - `GET /api/bet-history/fight/:fightId` - Get bets for a specific fight (protected)
+- `GET /api/bet-history/user/:userId` - Get bets for a specific user (protected)
+- `GET /api/bet-history/user/:userId/event/:eventId` - Get user bets for a specific event (protected)
+- `PATCH /api/bet-history/:id/status` - Update bet status/payout (protected)
+- `PATCH /api/bet-history/:id/settle` - Mark winning/draw bet as settled/paid (protected)
 
 ### Runners
 
@@ -225,6 +230,52 @@ The system supports the following user roles:
 3. **cashoutTeller** - Handle cash-out operations
 4. **runner** - Mobile betting agents
 5. **controller** - Fight management and control
+
+## 💸 Bet Settlement Endpoint
+
+### `PATCH /api/bet-history/:id/settle`
+
+Marks a bet as paid by setting `is_paid = true`.
+
+### Auth
+
+- Required: `Authorization: Bearer <jwt-token>`
+
+### Path Parameters
+
+| Param | Type | Required | Description |
+|-------|------|----------|-------------|
+| `id` | string (MongoDB ObjectId) | Yes | Bet ID to settle |
+
+### Request Body
+
+- No request body required.
+
+### Success Response
+
+- **200 OK**
+```json
+{
+  "message": "Bet settled successfully",
+  "bet": {
+    "_id": "65f8a1b2c3d4e5f678901234",
+    "status": "won",
+    "is_paid": true
+  }
+}
+```
+
+### Error Responses
+
+- **400 Bad Request**: `Only bets with status "won" or "draw" can be settled`
+- **400 Bad Request**: `Bet has already been settled`
+- **404 Not Found**: `Bet not found`
+- **500 Internal Server Error**: `Error settling bet`
+
+### Notes
+
+- Only bets with status `won` or `draw` are allowed to be settled.
+- Settling does **not** change `status`; it only updates `is_paid`.
 
 ## 📝 Notes
 
