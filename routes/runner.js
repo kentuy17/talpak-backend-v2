@@ -58,23 +58,52 @@ const getCurrentEventId = async () => {
   return latestEvent ? latestEvent._id : null;
 };
 
+const mapTransactionForResponse = (transaction) => {
+  const tx = transaction.toObject ? transaction.toObject() : transaction;
+  const tellerNo = tx?.tellerId?.tellerNo ?? null;
+
+  return {
+    ...tx,
+    tellerNo,
+    tellerId: undefined
+  };
+};
+
+const getTellerIdByTellerNo = async (tellerNo) => {
+  const tellerNoAsNumber = Number(tellerNo);
+  if (Number.isNaN(tellerNoAsNumber)) {
+    return null;
+  }
+
+  const teller = await User.findOne({ tellerNo: tellerNoAsNumber }).select('_id');
+  return teller ? teller._id : null;
+};
+
 // Get all transactions
 router.get('/', async (req, res) => {
   try {
-    const { status, transactionType, runnerId, tellerId } = req.query;
+    const { status, transactionType, runnerId, tellerId, tellerNo } = req.query;
     const filter = {};
 
     if (status) filter.status = status;
     if (transactionType) filter.transactionType = transactionType;
     if (runnerId) filter.runnerId = runnerId;
     if (tellerId) filter.tellerId = tellerId;
+    if (tellerNo) {
+      const resolvedTellerId = await getTellerIdByTellerNo(tellerNo);
+      if (!resolvedTellerId) {
+        return res.status(404).json({ message: 'Teller not found' });
+      }
+
+      filter.tellerId = resolvedTellerId;
+    }
 
     const transactions = await Runner.find(filter)
       .populate('runnerId', 'username tellerNo role')
       .populate('tellerId', 'username tellerNo role')
       .sort({ createdAt: -1 });
 
-    res.json({ transactions });
+    res.json({ transactions: transactions.map(mapTransactionForResponse) });
   } catch (error) {
     res.status(500).json({ message: 'Error fetching transactions', error });
   }
@@ -102,19 +131,26 @@ router.get('/runner/:runnerId', async (req, res) => {
 });
 
 // Get transactions by teller
-router.get('/teller/:tellerId', async (req, res) => {
+router.get('/teller/:tellerNo', async (req, res) => {
   try {
-    const { tellerId } = req.params;
+    const { tellerNo } = req.params;
     const { status, transactionType } = req.query;
+
+    const tellerId = await getTellerIdByTellerNo(tellerNo);
+    if (!tellerId) {
+      return res.status(404).json({ message: 'Teller not found' });
+    }
 
     const filter = { tellerId };
     if (status) filter.status = status;
     if (transactionType) filter.transactionType = transactionType;
 
     const transactions = await Runner.find(filter)
+      .populate('runnerId', 'username tellerNo role')
+      .populate('tellerId', 'username tellerNo role')
       .sort({ createdAt: -1 });
 
-    res.json({ transactions });
+    res.json({ transactions: transactions.map(mapTransactionForResponse) });
   } catch (error) {
     res.status(500).json({ message: 'Error fetching teller transactions', error });
   }
@@ -388,19 +424,30 @@ router.get('/summary', async (req, res) => {
       return res.status(400).json({ message: 'tellerNo and eventId are required' });
     }
 
-    const teller = await User.findOne({ tellerNo: Number(tellerNo) }).select('_id tellerNo username role');
-    if (!teller) {
-      return res.status(404).json({ message: 'Teller not found' });
-    }
-
     if (!mongoose.Types.ObjectId.isValid(eventId)) {
       return res.status(400).json({ message: 'Invalid eventId' });
     }
 
+    const teller = await User.findOne({ tellerNo: Number(tellerNo) }).select('tellerNo');
+    if (!teller) {
+      return res.status(404).json({ message: 'Teller not found' });
+    }
+
     const totals = await Runner.aggregate([
       {
+        $lookup: {
+          from: 'users',
+          localField: 'tellerId',
+          foreignField: '_id',
+          as: 'teller'
+        }
+      },
+      {
+        $unwind: '$teller'
+      },
+      {
         $match: {
-          tellerId: teller._id,
+          'teller.tellerNo': Number(tellerNo),
           eventId: new mongoose.Types.ObjectId(eventId),
           status: 'completed',
           transactionType: { $in: ['topup', 'remit'] }
@@ -419,7 +466,6 @@ router.get('/summary', async (req, res) => {
 
     res.json({
       tellerNo: teller.tellerNo,
-      tellerId: teller._id,
       eventId,
       totalTopup,
       totalRemittance
