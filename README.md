@@ -142,6 +142,7 @@ The server will start on `http://localhost:3000` (or your configured PORT).
 ### Runners
 
 - `GET /api/runners` - Get all runners (protected)
+- `GET /api/runners/items?eventId=<eventId>&tellerNo=<tellerNo>` - Get bet items by event and teller number (protected)
 - `POST /api/runners` - Create a new runner transaction (protected)
 - `PATCH /api/runners/:id` - Update runner transaction (protected)
 
