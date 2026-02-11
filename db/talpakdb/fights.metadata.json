@@ -1,0 +1,1 @@
+{"indexes":[{"v":{"$numberInt":"2"},"key":{"_id":{"$numberInt":"1"}},"name":"_id_"},{"v":{"$numberInt":"2"},"key":{"eventId":{"$numberInt":"1"},"fightNumber":{"$numberInt":"1"}},"name":"eventId_1_fightNumber_1","background":true,"unique":true}],"uuid":"28143f042d944f0dbb078a9d7b67d3ed","collectionName":"fights","type":"collection"}
