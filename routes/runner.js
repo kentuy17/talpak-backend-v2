@@ -1,12 +1,49 @@
 const express = require('express');
 const Runner = require('../models/Runner');
 const User = require('../models/User');
+const BetHistory = require('../models/BetHistory');
+const Fight = require('../models/Fight');
 const authMiddleware = require('../middleware/auth');
 
 const router = express.Router();
 
 // Apply auth middleware to all routes
 router.use(authMiddleware);
+
+// Get all bet items by event ID and teller number
+router.get('/items', async (req, res) => {
+  try {
+    const { eventId, tellerNo } = req.query;
+
+    if (!eventId || !tellerNo) {
+      return res.status(400).json({ message: 'eventId and tellerNo are required' });
+    }
+
+    const teller = await User.findOne({ tellerNo }).select('_id username tellerNo role');
+    if (!teller) {
+      return res.status(404).json({ message: 'Teller not found' });
+    }
+
+    const fights = await Fight.find({ eventId }).select('_id');
+    if (!fights.length) {
+      return res.json({ items: [] });
+    }
+
+    const fightIds = fights.map(fight => fight._id);
+
+    const items = await BetHistory.find({
+      userId: teller._id,
+      fightId: { $in: fightIds }
+    })
+      .populate('fightId', 'fightNumber eventId status meron wala')
+      .populate('userId', 'username tellerNo role')
+      .sort({ createdAt: -1 });
+
+    res.json({ items });
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching items by event and teller number', error });
+  }
+});
 
 // Get all transactions
 router.get('/', async (req, res) => {
