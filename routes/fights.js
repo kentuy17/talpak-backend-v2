@@ -9,10 +9,13 @@ const router = express.Router();
 // services
 const { processBetsForFight } = require('../services/betService');
 const { processFightClosure } = require('../services/fightService');
-
-// In-memory cache for partial states
-// Structure: { fightNo: { meron: boolean, wala: boolean } }
-const partialStatesCache = new Map();
+const { 
+  getPartialState,
+  updatePartialState,
+  clearPartialState,
+  getAllPartialStates,
+  partialStatesCache
+ } = require('../services/partialStateService');
 
 // Apply auth middleware to all routes
 router.use(authMiddleware);
@@ -255,19 +258,7 @@ router.patch('/partial-state', async (req, res) => {
       });
     }
 
-    // Get or create cache entry for this fight
-    if (!partialStatesCache.has(fightNo)) {
-      partialStatesCache.set(fightNo, { meron: false, wala: false });
-    }
-
-    const state = partialStatesCache.get(fightNo);
-
-    // Update the specific side
-    if (side === 'MERON') {
-      state.meron = isClosed;
-    } else {
-      state.wala = isClosed;
-    }
+    updatePartialState(fightNo, side, isClosed)
 
     // Emit partial state update via Socket.IO
     const io = getIO();
@@ -281,7 +272,7 @@ router.patch('/partial-state', async (req, res) => {
     res.json({
       message: `Partial state updated successfully for ${side}`,
       fightNo,
-      state: partialStatesCache.get(fightNo)
+      state: getPartialState(fightNo)
     });
   } catch (error) {
     res.status(500).json({ message: 'Error updating partial state', error });
@@ -292,17 +283,7 @@ router.patch('/partial-state', async (req, res) => {
 router.get('/partial-state/:fightNo', async (req, res) => {
   try {
     const { fightNo } = req.params;
-
-    // Check if fight number exists in cache
-    if (!partialStatesCache.has(fightNo)) {
-      return res.json({
-        fightNo: parseInt(fightNo),
-        meron: false,
-        wala: false
-      });
-    }
-
-    const state = partialStatesCache.get(fightNo);
+    const state = getPartialState(fightNo);
 
     res.json({
       fightNo: parseInt(fightNo),
@@ -319,8 +300,9 @@ router.delete('/partial-state/:fightNo', async (req, res) => {
   try {
     const { fightNo } = req.params;
 
-    if (partialStatesCache.has(fightNo)) {
-      partialStatesCache.delete(fightNo);
+    const state = getPartialState(fightNo);
+    if (state && (state.meron || state.wala)) {
+      clearPartialState(fightNo);
       
       // Emit cache clear event via Socket.IO
       const io = getIO();
@@ -347,15 +329,9 @@ router.delete('/partial-state/:fightNo', async (req, res) => {
 // Get all partial states (admin utility endpoint)
 router.get('/partial-state', async (req, res) => {
   try {
-    const allStates = {};
-    partialStatesCache.forEach((value, key) => {
-      allStates[key] = value;
-    });
+    const allStates = getAllPartialStates();
 
-    res.json({
-      total: partialStatesCache.size,
-      states: allStates
-    });
+    res.json(allStates);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching all partial states', error });
   }

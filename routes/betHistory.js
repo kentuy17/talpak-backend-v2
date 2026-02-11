@@ -2,6 +2,7 @@ const express = require('express');
 const BetHistory = require('../models/BetHistory');
 const authMiddleware = require('../middleware/auth');
 const { getIO } = require('../socket/socketServer');
+const { getPartialState } = require('../services/partialStateService');
 
 const router = express.Router();
 
@@ -193,6 +194,12 @@ router.post('/add', async (req, res) => {
 
     if (fight.status !== 'open') {
       return res.status(400).json({ message: 'Betting is only allowed for open fights' });
+    }
+
+    // Check if the bet side is partially closed
+    const partialState = getPartialState(fight.fightNumber);
+    if (partialState[betSide.toLowerCase()]) {
+      return res.status(400).json({ message: `Betting for ${betSide} is partially closed` });
     }
 
     // Get user and check credits
