@@ -1,12 +1,26 @@
 const express = require('express');
+const mongoose = require('mongoose');
 const Runner = require('../models/Runner');
 const User = require('../models/User');
 const authMiddleware = require('../middleware/auth');
+const GameEvent = require('../models/GameEvent');
 
 const router = express.Router();
 
 // Apply auth middleware to all routes
 router.use(authMiddleware);
+
+
+const getCurrentEventId = async () => {
+  const activeEvent = await GameEvent.findOne({ status: 'ongoing' }).select('_id');
+
+  if (activeEvent) {
+    return activeEvent._id;
+  }
+
+  const latestEvent = await GameEvent.findOne().sort({ eventDate: -1, createdAt: -1 }).select('_id');
+  return latestEvent ? latestEvent._id : null;
+};
 
 // Get all transactions
 router.get('/', async (req, res) => {
@@ -27,23 +41,6 @@ router.get('/', async (req, res) => {
     res.json({ transactions });
   } catch (error) {
     res.status(500).json({ message: 'Error fetching transactions', error });
-  }
-});
-
-// Get transaction by ID
-router.get('/:id', async (req, res) => {
-  try {
-    const transaction = await Runner.findById(req.params.id)
-      .populate('runnerId', 'username tellerNo role')
-      .populate('tellerId', 'username tellerNo role');
-
-    if (!transaction) {
-      return res.status(404).json({ message: 'Transaction not found' });
-    }
-
-    res.json({ transaction });
-  } catch (error) {
-    res.status(500).json({ message: 'Error fetching transaction', error });
   }
 });
 
@@ -124,8 +121,11 @@ router.post('/', async (req, res) => {
     //   }
     // }
 
+    const eventId = await getCurrentEventId();
+
     // Create transaction record
     const transaction = new Runner({
+      eventId,
       runnerId: null, // Can be null for unassigned transactions
       tellerId: req.user.userId,
       amount,
@@ -178,8 +178,11 @@ router.post('/topup', async (req, res) => {
       return res.status(400).json({ message: 'Invalid teller role' });
     }
 
+    const eventId = await getCurrentEventId();
+
     // Create transaction record
     const transaction = new Runner({
+      eventId,
       runnerId: req.user.userId,
       tellerId,
       amount,
@@ -250,8 +253,11 @@ router.post('/remittance', async (req, res) => {
       });
     }
 
+    const eventId = await getCurrentEventId();
+
     // Create transaction record
     const transaction = new Runner({
+      eventId,
       runnerId: null, // Runner will be assigned later
       tellerId: teller._id,
       amount,
@@ -337,6 +343,56 @@ router.put('/assign/:transactionId', async (req, res) => {
   }
 });
 
+// Get topup/remittance summary by tellerNo and eventId
+router.get('/summary', async (req, res) => {
+  try {
+    const { tellerNo, eventId } = req.query;
+
+    if (!tellerNo || !eventId) {
+      return res.status(400).json({ message: 'tellerNo and eventId are required' });
+    }
+
+    const teller = await User.findOne({ tellerNo: Number(tellerNo) }).select('_id tellerNo username role');
+    if (!teller) {
+      return res.status(404).json({ message: 'Teller not found' });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(eventId)) {
+      return res.status(400).json({ message: 'Invalid eventId' });
+    }
+
+    const totals = await Runner.aggregate([
+      {
+        $match: {
+          tellerId: teller._id,
+          eventId: new mongoose.Types.ObjectId(eventId),
+          status: 'completed',
+          transactionType: { $in: ['topup', 'remit'] }
+        }
+      },
+      {
+        $group: {
+          _id: '$transactionType',
+          total: { $sum: '$amount' }
+        }
+      }
+    ]);
+
+    const totalTopup = totals.find((t) => t._id === 'topup')?.total || 0;
+    const totalRemittance = totals.find((t) => t._id === 'remit')?.total || 0;
+
+    res.json({
+      tellerNo: teller.tellerNo,
+      tellerId: teller._id,
+      eventId,
+      totalTopup,
+      totalRemittance
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching teller summary', error });
+  }
+});
+
 // Get transaction statistics
 router.get('/stats/:runnerId', async (req, res) => {
   try {
@@ -369,5 +425,24 @@ router.get('/stats/:runnerId', async (req, res) => {
     res.status(500).json({ message: 'Error fetching transaction statistics', error });
   }
 });
+
+
+// Get transaction by ID
+router.get('/:id', async (req, res) => {
+  try {
+    const transaction = await Runner.findById(req.params.id)
+      .populate('runnerId', 'username tellerNo role')
+      .populate('tellerId', 'username tellerNo role');
+
+    if (!transaction) {
+      return res.status(404).json({ message: 'Transaction not found' });
+    }
+
+    res.json({ transaction });
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching transaction', error });
+  }
+});
+
 
 module.exports = router;
