@@ -14,6 +14,7 @@ const fightRoutes = require('./routes/fights');
 const betHistoryRoutes = require('./routes/betHistory')
 const runnerRoutes = require('./routes/runner')
 const guestRoutes = require('./routes/guests')
+const versionRoutes = require('./routes/version')
 
 const app = express();
 app.use(express.json());
@@ -61,6 +62,9 @@ console.log(listEndpoints(app));
 
 // Guest route
 app.use('/api/guests', guestRoutes);
+
+// version route
+app.use('/api/version', versionRoutes);
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`Server is running at port ${PORT}`);
