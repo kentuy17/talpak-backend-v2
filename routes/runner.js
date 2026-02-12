@@ -151,6 +151,9 @@ router.get('/teller/:tellerNo', async (req, res) => {
   try {
     const { tellerNo } = req.params;
     const { status, transactionType } = req.query;
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 10;
+    const skip = (page - 1) * limit;
 
     const tellerId = await getTellerIdByTellerNo(tellerNo);
     if (!tellerId) {
@@ -161,12 +164,25 @@ router.get('/teller/:tellerNo', async (req, res) => {
     if (status) filter.status = status;
     if (transactionType) filter.transactionType = transactionType;
 
-    const transactions = await Runner.find(filter)
-      .populate('runnerId', 'username tellerNo role')
-      .populate('tellerId', 'username tellerNo role')
-      .sort({ createdAt: -1 });
+    const [transactions, total] = await Promise.all([
+      Runner.find(filter)
+        .populate('runnerId', 'username tellerNo role')
+        .populate('tellerId', 'username tellerNo role')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit),
+      Runner.countDocuments(filter)
+    ]);
 
-    res.json({ transactions: transactions.map(mapTransactionForResponse) });
+    res.json({
+      transactions: transactions.map(mapTransactionForResponse),
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    });
   } catch (error) {
     res.status(500).json({ message: 'Error fetching teller transactions', error });
   }
@@ -387,15 +403,15 @@ router.post('/remittance', async (req, res) => {
     });
 
     // Deduct credits from teller
-    const updatedTeller = await User.findByIdAndUpdate(
-      teller._id,
-      { $inc: { credits: -amount } },
-      { new: true, runValidators: true }
-    );
+    // const updatedTeller = await User.findByIdAndUpdate(
+    //   teller._id,
+    //   { $inc: { credits: -amount } },
+    //   { new: true, runValidators: true }
+    // );
 
-    // Update transaction status to completed
-    transaction.status = 'completed';
-    await transaction.save();
+    // // Update transaction status to completed
+    // transaction.status = 'completed';
+    // await transaction.save();
 
     res.status(200).json({
       message: 'Remittance successful',
