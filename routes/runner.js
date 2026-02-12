@@ -17,6 +17,9 @@ router.get('/items', async (req, res) => {
   try {
     const { eventId, tellerNo } = req.query;
 
+    console.log(req.params);
+
+
     if (!eventId || !tellerNo) {
       return res.status(400).json({ message: 'eventId and tellerNo are required' });
     }
@@ -155,6 +158,8 @@ router.get('/teller/:tellerNo', async (req, res) => {
     const limit = parseInt(req.query.limit, 10) || 10;
     const skip = (page - 1) * limit;
     const tellerNoAsNumber = Number(tellerNo);
+
+    console.log({ params: req.params, user: req.user });
 
     if (Number.isNaN(tellerNoAsNumber)) {
       return res.status(400).json({ message: 'Invalid tellerNo' });
@@ -325,32 +330,34 @@ router.post('/topup', async (req, res) => {
     // Create transaction record
     const transaction = new Runner({
       eventId,
-      runnerId: req.user.userId,
-      tellerId,
+      runnerId: null,
+      tellerId: tellerId,
       tellerNo: typeof teller.tellerNo === 'number' ? teller.tellerNo : 0,
       amount,
       transactionType: 'topup',
       status: 'pending'
     });
 
-    // Update teller's credits
-    const updatedTeller = await User.findByIdAndUpdate(
-      tellerId,
-      { $inc: { credits: amount } },
-      { new: true, runValidators: true }
-    );
-
-    // Update transaction status to completed
-    transaction.status = 'completed';
     await transaction.save();
+
+    // Update teller's credits
+    // const updatedTeller = await User.findByIdAndUpdate(
+    //   tellerId,
+    //   { $inc: { credits: amount } },
+    //   { new: true, runValidators: true }
+    // );
+
+    // // Update transaction status to completed
+    // transaction.status = 'completed';
+    // await transaction.save();
 
     res.status(200).json({
       message: 'Topup successful',
       transaction,
       teller: {
-        id: updatedTeller._id,
-        username: updatedTeller.username,
-        credits: updatedTeller.credits
+        id: tellerId,
+        username: teller.username,
+        credits: teller.credits
       },
       amount
     });
@@ -418,19 +425,21 @@ router.post('/remittance', async (req, res) => {
 
     // // Update transaction status to completed
     // transaction.status = 'completed';
-    // await transaction.save();
+    await transaction.save();
 
     res.status(200).json({
       message: 'Remittance successful',
       transaction,
       teller: {
-        id: updatedTeller._id,
-        username: updatedTeller.username,
-        credits: updatedTeller.credits
+        id: teller._id,
+        username: teller.username,
+        credits: teller.credits
       },
       amount
     });
   } catch (error) {
+    console.log(error);
+
     res.status(500).json({ message: 'Error processing remittance', error });
   }
 });

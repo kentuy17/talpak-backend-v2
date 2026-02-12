@@ -83,8 +83,6 @@ fightSchema.virtual('percentageMeron').get(function () {
   // const totalSum = vMeron + vWala
   // console.log({ totalSum: this.totalAmount, fightNum: this.fightNumber });
   const percent = percentage(vMeron, this.totalAmount)
-  console.log(percent, 'meronPercent');
-
   return percent;
 });
 
@@ -94,8 +92,6 @@ fightSchema.virtual('percentageWala').get(function () {
   const vWala = parseInt(this.wala)
   // const totalSum = vMeron + vWala
   const percent = percentage(vWala, this.totalAmount);
-  console.log(percent, 'walaPercent');
-
   return percent
 })
 
