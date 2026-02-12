@@ -154,13 +154,18 @@ router.get('/teller/:tellerNo', async (req, res) => {
     const page = parseInt(req.query.page, 10) || 1;
     const limit = parseInt(req.query.limit, 10) || 10;
     const skip = (page - 1) * limit;
+    const tellerNoAsNumber = Number(tellerNo);
 
-    const tellerId = await getTellerIdByTellerNo(tellerNo);
-    if (!tellerId) {
-      return res.status(404).json({ message: 'Teller not found' });
+    if (Number.isNaN(tellerNoAsNumber)) {
+      return res.status(400).json({ message: 'Invalid tellerNo' });
     }
 
-    const filter = { tellerId };
+    const activeEventId = await getActiveEventId();
+    if (!activeEventId) {
+      return res.status(404).json({ message: 'No active event found' });
+    }
+
+    const filter = { tellerNo: tellerNoAsNumber, eventId: activeEventId };
     if (status) filter.status = status;
     if (transactionType) filter.transactionType = transactionType;
 
@@ -175,6 +180,8 @@ router.get('/teller/:tellerNo', async (req, res) => {
     ]);
 
     res.json({
+      eventId: activeEventId,
+      tellerNo: tellerNoAsNumber,
       transactions: transactions.map(mapTransactionForResponse),
       pagination: {
         page,
