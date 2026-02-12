@@ -156,6 +156,11 @@ The server will start on `http://localhost:3000` (or your configured PORT).
 - `GET /api/guests` - Get guest information
 - `POST /api/guests` - Create guest session
 
+### Version
+
+- `GET /api/version/latest` - Get latest version record
+- `POST /api/version` - Create a version record
+
 ## 📊 Database Schema
 
 ### User
@@ -205,6 +210,13 @@ The server will start on `http://localhost:3000` (or your configured PORT).
 - `amount` (Number)
 - `transactionType` (Enum: remit, topup)
 - `status` (Enum: pending, processing, completed, cancelled)
+- `timestamps`
+
+### Version
+- `version` (String, required)
+- `file` (String, required)
+- `changeLogs` (Array of String)
+- `isLatest` (Boolean)
 - `timestamps`
 
 ## 🔌 Socket.IO Events
@@ -292,3 +304,21 @@ For issues and questions, please contact the development team.
 ## 📄 License
 
 ISC
+
+## 🔧 Insert Version Script
+
+Use this command to insert a version record through the API:
+
+```bash
+npm run version:insert -- <version> <file> [changeLogsCSV] [isLatest]
+```
+
+Example:
+
+```bash
+npm run version:insert -- 1.0.1 app-release.apk "bug fixes,ui updates" true
+```
+
+- `version` and `file` are required
+- `changeLogsCSV` is optional (comma-separated)
+- `isLatest` is optional (`true` by default)

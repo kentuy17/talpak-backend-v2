@@ -6,6 +6,11 @@ const versionSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
+  file: {
+    type: String,
+    required: true,
+    trim: true
+  },
   changeLogs: {
     type: [String],
     default: []
