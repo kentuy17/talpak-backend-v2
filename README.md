@@ -1,326 +1,465 @@
 # Talpak Backend V2
 
-A comprehensive Node.js backend server for managing betting operations on cockfighting events. This system provides real-time betting capabilities, user management, fight tracking, and automated payout calculations.
+Node.js + Express + MongoDB backend for event/fight management, betting, and runner transactions.
 
-## 📋 Table of Contents
+## Overview
 
-- [Features](#features)
-- [Prerequisites](#prerequisites)
-- [Installation](#installation)
-- [Configuration](#configuration)
-- [Running the Server](#running-the-server)
-- [API Endpoints](#api-endpoints)
-- [Database Schema](#database-schema)
-- [Socket.IO Events](#socketio-events)
-- [User Roles](#user-roles)
+- Runtime: `Node.js` (CommonJS)
+- Framework: `Express`
+- DB: `MongoDB` via `Mongoose`
+- Auth: `JWT` bearer token
+- Realtime: `Socket.IO`
 
-## ✨ Features
+## Setup
 
-- **User Authentication**: Secure JWT-based authentication system
-- **Real-time Updates**: Socket.IO integration for live fight updates and bet notifications
-- **Fight Management**: Create, update, and track cockfighting events
-- **Betting System**: Place bets on fights (meron/wala) with automatic odds calculation
-- **Automated Payouts**: Process and calculate winnings based on fight results
-- **Role-based Access**: Different user roles with specific permissions
-- **Transaction Management**: Track runner transactions and cash operations
-- **Database Migrations**: MongoDB migrations for schema updates
-
-## 🔧 Prerequisites
-
-Before you begin, ensure you have the following installed:
-
-- **Node.js**: v14.0.0 or higher
-- **MongoDB**: v4.4 or higher
-- **npm**: v6.0.0 or higher
-
-## 📦 Installation
-
-1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd talpak-backend-v2
-   ```
-
-2. **Install dependencies**
-   ```bash
-   npm install
-   ```
-
-3. **Set up MongoDB**
-   - Make sure MongoDB is running on your system
-   - Default connection: `mongodb://localhost:27017`
-   - Database name: `talpakdb`
-
-4. **Configure environment variables**
-   - Create a `.env` file in the root directory
-   - Add the following environment variables (see Configuration section)
-
-## ⚙️ Configuration
-
-Create a `.env` file in the root directory with the following variables:
-
+1. Install dependencies.
+```bash
+npm install
+```
+2. Create `.env` in project root.
 ```env
-# Server Configuration
 PORT=3000
-
-# MongoDB Configuration
 MONGODB_URI=mongodb://localhost:27017/talpakdb
-
-# JWT Secret (generate a secure random string)
 JWT_SECRET=your_secure_jwt_secret_here
-
-# Client URL (for Socket.IO CORS)
 CLIENT_URL=http://localhost:3000
 ```
-
-### Environment Variables Explained
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| PORT | Server port number | 3000 |
-| MONGODB_URI | MongoDB connection string | mongodb://localhost:27017/talpakdb |
-| JWT_SECRET | Secret key for JWT token signing | (required) |
-| CLIENT_URL | Client application URL for CORS | * |
-
-## 🚀 Running the Server
-
-### Development Mode
-
-Start the server with hot-reload using nodemon:
-
+3. Run development server.
 ```bash
 npm run dev
 ```
 
-### Production Mode
+## Scripts
 
-Start the server normally:
+- `npm run dev` - run server with `nodemon`
+- `npm run version:insert -- <version> <file> [changeLogsCSV] [isLatest]` - insert version via API script
+- `npm run bethistory:backfill-tellerno` - backfill `bethistories.tellerNo` from users
 
-```bash
-node server.js
-```
+## Authentication
 
-The server will start on `http://localhost:3000` (or your configured PORT).
+- Protected routes require: `Authorization: Bearer <token>`
+- JWT payload currently includes: `userId`, `username`, `tellerNo`, `role`
 
-## 🌐 API Endpoints
+## Models
 
-### Authentication
+### `User` (`models/User.js`)
 
-- `POST /api/auth/register` - Register a new user
-- `POST /api/auth/login` - Login user
+- `username`: `String`, required, unique
+- `tellerNo`: `Number`, default `0`
+- `password`: `String`, required, bcrypt-hashed by pre-save hook
+- `role`: enum `admin | cashinTeller | cashoutTeller | runner | controller`, default `cashinTeller`
+- `isActive`: `Boolean`, default `false`
+- `credits`: `Number`, default `0`, min `0`
+- timestamps enabled
 
-### Users
+### `GameEvent` (`models/GameEvent.js`)
 
-- `GET /api/users` - Get all users (protected)
-- `GET /api/users/:id` - Get user by ID (protected)
-- `PUT /api/users/:id` - Update user (protected)
+- `eventName`: `String`, required
+- `eventDate`: `Date`, required, default `Date.now`
+- `location`: `String`
+- `status`: enum `upcoming | ongoing | completed | cancelled`, default `upcoming`
+- `createdBy`: `ObjectId(User)`, required
+- timestamps enabled
 
-### Game Events
+### `Fight` (`models/Fight.js`)
 
-- `GET /api/game-events` - Get all game events (protected)
-- `POST /api/game-events` - Create a new game event (protected)
-- `GET /api/game-events/:id` - Get game event by ID (protected)
-- `PATCH /api/game-events/:id` - Update game event (protected)
+- `eventId`: `ObjectId(GameEvent)`, required
+- `fightNumber`: `Number`
+- `meron`: `Number`, default `0` (stored scaled by setter/getter)
+- `wala`: `Number`, default `0` (stored scaled by setter/getter)
+- `createdBy`: `ObjectId(User)`, required
+- `status`: enum `open | closed | completed | cancelled | waiting`, default `waiting`
+- `winner`: enum `meron | wala | draw | cancelled`
+- `startTime`: `Date`, default `Date.now`
+- `endTime`: `Date`
+- timestamps enabled
+- unique index: `{ eventId: 1, fightNumber: 1 }`
 
-### Fights
+### `BetHistory` (`models/BetHistory.js`)
 
-- `GET /api/fights/event/:eventId` - Get all fights for an event (protected)
-- `GET /api/fights/current/:eventId` - Get current fight for an event (protected)
-- `GET /api/fights/:id` - Get fight by ID (protected)
-- `POST /api/fights` - Create a new fight (protected)
-- `PATCH /api/fights/:id/status` - Update fight status (protected)
-- `PATCH /api/fights/declare-winner` - Declare fight winner (protected)
-- `PATCH /api/fights/complete` - Complete current fight (protected)
+- `fightId`: `ObjectId(Fight)`, required
+- `userId`: `ObjectId(User)`, required
+- `tellerNo`: `Number`, default `0`
+- `betSide`: enum `meron | wala`, required
+- `amount`: `Number`, required, min `0` (stored scaled by setter/getter)
+- `payout`: `Number`, default `0` (stored scaled by setter/getter)
+- `status`: enum `pending | won | lost | cancelled | draw`, default `pending`
+- `odds`: `Number`, required, default `1`
+- `is_paid`: `Boolean`, default `false`
+- `betCode`: `String`, sparse
+- timestamps enabled
+- indexes: `{ fightId: 1, userId: 1 }`, `{ tellerNo: 1, fightId: 1 }`, `{ betCode: 1 } (sparse)`
 
-### Bet History
+### `Runner` (`models/Runner.js`)
 
-- `GET /api/bet-history` - Get all bet history (protected)
-- `GET /api/bet-history/:id` - Get bet by ID (protected)
-- `GET /api/bet-history/code/:betCode` - Get bet by bet code (protected)
-- `POST /api/bet-history/add` - Place a new bet (protected)
-- `GET /api/bet-history/fight/:fightId` - Get bets for a specific fight (protected)
-- `GET /api/bet-history/user/:userId` - Get bets for a specific user (protected)
-- `GET /api/bet-history/user/:userId/event/:eventId` - Get user bets for a specific event (protected)
-- `GET /api/bet-history/teller/active-event` - Get bets for authenticated teller number in active event (protected)
-- `PATCH /api/bet-history/:id/status` - Update bet status/payout (protected)
-- `PATCH /api/bet-history/:id/settle` - Mark winning/draw bet as settled/paid (protected)
+- `eventId`: `ObjectId(GameEvent)`
+- `runnerId`: `ObjectId(User)`
+- `tellerId`: `ObjectId(User)`, required
+- `tellerNo`: `Number`, default `0`
+- `amount`: `Number`, required, min `0`
+- `transactionType`: enum `remit | topup`, required
+- `status`: enum `pending | processing | completed | cancelled`, default `pending`
+- timestamps enabled
+- indexes:
+  - `{ runnerId: 1, createdAt: -1 }` (sparse)
+  - `{ tellerId: 1, createdAt: -1 }`
+  - `{ eventId: 1, tellerNo: 1, createdAt: -1 }`
+  - `{ eventId: 1, tellerId: 1, transactionType: 1, status: 1 }`
+  - `{ transactionType: 1 }`
+  - `{ status: 1 }`
 
-### Runners
+### `Version` (`models/Version.js`)
 
-- `GET /api/runners` - Get all runners (protected)
-- `GET /api/runners/items?eventId=<eventId>&tellerNo=<tellerNo>` - Get bet items by event and teller number (protected)
-- `POST /api/runners` - Create a new runner transaction (protected)
-- `PATCH /api/runners/:id` - Update runner transaction (protected)
+- `version`: `String`, required
+- `file`: `String`, required
+- `changeLogs`: `String[]`, default `[]`
+- `isLatest`: `Boolean`, default `false`
+- timestamps enabled
 
-### Guests
+## API Routes
 
-- `GET /api/guests` - Get guest information
-- `POST /api/guests` - Create guest session
+Base URL examples assume default server: `http://localhost:3000`.
 
-### Version
+### Auth Routes (`/api/auth`)
 
-- `GET /api/version/latest` - Get latest version record
-- `POST /api/version` - Create a version record
+1. `POST /register`
+- Auth: No
+- Body:
+  - `username` (required)
+  - `password` (required)
+  - `tellerNo` (optional)
+  - `role` (optional)
 
-## 📊 Database Schema
+2. `POST /login`
+- Auth: No
+- Body:
+  - `username` (required)
+  - `password` (required)
 
-### User
-- `username` (String, required, unique)
-- `password` (String, required, hashed)
-- `tellerNo` (Number)
-- `role` (Enum: admin, cashinTeller, cashoutTeller, runner, controller)
-- `isActive` (Boolean)
-- `credits` (Number)
-- `timestamps`
+### User Routes (`/api/users`)
 
-### Fight
-- `eventId` (ObjectId, ref: GameEvent)
-- `fightNumber` (Number)
-- `meron` (Number) - Total bets on meron
-- `wala` (Number) - Total bets on wala
-- `createdBy` (ObjectId, ref: User)
-- `status` (Enum: open, closed, completed, cancelled, waiting)
-- `winner` (Enum: meron, wala, draw, cancelled)
-- `startTime` (Date)
-- `endTime` (Date)
-- `timestamps`
+1. `GET /`
+- Auth: Yes
+- Query: none
 
-### BetHistory
-- `fightId` (ObjectId, ref: Fight)
-- `userId` (ObjectId, ref: User)
-- `tellerNo` (Number)
-- `betSide` (Enum: meron, wala)
-- `amount` (Number)
-- `payout` (Number)
-- `status` (Enum: pending, won, lost, cancelled)
-- `odds` (Number)
-- `is_paid` (Boolean)
-- `betCode` (String)
-- `timestamps`
+2. `GET /:id`
+- Auth: Yes
+- Path params:
+  - `id` user ObjectId
 
-### GameEvent
-- `eventName` (String, required)
-- `eventDate` (Date)
-- `location` (String)
-- `status` (Enum: upcoming, ongoing, completed, cancelled)
-- `createdBy` (ObjectId, ref: User)
-- `timestamps`
+3. `GET /:id/credits`
+- Auth: Yes
+- Path params:
+  - `id` user ObjectId
 
-### Runner
-- `runnerId` (ObjectId, ref: User)
-- `tellerId` (ObjectId, ref: User)
-- `amount` (Number)
-- `transactionType` (Enum: remit, topup)
-- `status` (Enum: pending, processing, completed, cancelled)
-- `timestamps`
+4. `POST /`
+- Auth: Yes
+- Body:
+  - `username` (required)
+  - `password` (required)
+  - `tellerNo` (optional)
+  - `role` (optional)
 
-### Version
-- `version` (String, required)
-- `file` (String, required)
-- `changeLogs` (Array of String)
-- `isLatest` (Boolean)
-- `timestamps`
+5. `PUT /:id`
+- Auth: Yes
+- Path params:
+  - `id` user ObjectId
+- Body:
+  - `username` (optional)
+  - `password` (optional)
+  - `tellerNo` (optional)
+  - `role` (optional)
 
-## 🔌 Socket.IO Events
+6. `DELETE /:id`
+- Auth: Yes
+- Path params:
+  - `id` user ObjectId
 
-### Client Events
+### Game Event Routes (`/api/game-events`)
 
-- `join-room` - Join a specific fight room
-- `leave-room` - Leave a fight room
-- `fight-update` - Send fight updates
-- `bet-placed` - Send new bet notifications
+1. `GET /`
+- Auth: Yes
 
-### Server Events
+2. `GET /active`
+- Auth: Yes
 
-- `fight-updated` - Broadcast fight updates to room
-- `new-bet` - Broadcast new bet to room
+3. `POST /`
+- Auth: Yes
+- Body:
+  - `eventName` (required)
+  - `eventDate` (optional)
+  - `location` (optional)
 
-## 👥 User Roles
+4. `PATCH /:id/activate`
+- Auth: Yes
+- Path params:
+  - `id` event ObjectId
 
-The system supports the following user roles:
+5. `PUT /:id`
+- Auth: Yes
+- Path params:
+  - `id` event ObjectId
+- Body:
+  - `eventName` (optional)
+  - `eventDate` (optional)
+  - `location` (optional)
+  - `status` (optional)
 
-1. **admin** - Full system access
-2. **cashinTeller** - Handle cash-in operations
-3. **cashoutTeller** - Handle cash-out operations
-4. **runner** - Mobile betting agents
-5. **controller** - Fight management and control
+### Fight Routes (`/api/fights`)
 
-## 💸 Bet Settlement Endpoint
+1. `GET /event/:eventId`
+- Auth: Yes
+- Path params:
+  - `eventId` event ObjectId
 
-### `PATCH /api/bet-history/:id/settle`
+2. `GET /current/:eventId`
+- Auth: Yes
+- Path params:
+  - `eventId` event ObjectId
 
-Marks a bet as paid by setting `is_paid = true`.
+3. `GET /:id`
+- Auth: Yes
+- Path params:
+  - `id` fight ObjectId
 
-### Auth
+4. `POST /`
+- Auth: Yes
+- Body:
+  - `eventId` (required)
+  - `meron` (optional)
+  - `wala` (optional)
 
-- Required: `Authorization: Bearer <jwt-token>`
+5. `PATCH /complete`
+- Auth: Yes
+- Body:
+  - `eventId` (required)
 
-### Path Parameters
+6. `PATCH /:id/status`
+- Auth: Yes
+- Path params:
+  - `id` fight ObjectId
+- Body:
+  - `status` (required)
 
-| Param | Type | Required | Description |
-|-------|------|----------|-------------|
-| `id` | string (MongoDB ObjectId) | Yes | Bet ID to settle |
+7. `PATCH /declare-winner`
+- Auth: Yes
+- Body:
+  - `fightId` (required)
+  - `winner` (required): `meron | wala | draw | cancelled`
+  - `status` (required): `completed | cancelled`
 
-### Request Body
+8. `PATCH /partial-state`
+- Auth: Yes
+- Body:
+  - `side` (required): `MERON | WALA`
+  - `isClosed` (required): `boolean`
+  - `fightNo` (required): `number`
 
-- No request body required.
+9. `GET /partial-state/:fightNo`
+- Auth: Yes
+- Path params:
+  - `fightNo` number
 
-### Success Response
+10. `DELETE /partial-state/:fightNo`
+- Auth: Yes
+- Path params:
+  - `fightNo` number
 
-- **200 OK**
-```json
-{
-  "message": "Bet settled successfully",
-  "bet": {
-    "_id": "65f8a1b2c3d4e5f678901234",
-    "status": "won",
-    "is_paid": true
-  }
-}
-```
+11. `GET /partial-state`
+- Auth: Yes
 
-### Error Responses
+### Bet History Routes (`/api/bet-history`)
 
-- **400 Bad Request**: `Only bets with status "won" or "draw" can be settled`
-- **400 Bad Request**: `Bet has already been settled`
-- **404 Not Found**: `Bet not found`
-- **500 Internal Server Error**: `Error settling bet`
+1. `GET /`
+- Auth: Yes
+- Query:
+  - `page` (optional, default `1`)
+  - `limit` (optional, default `10`)
 
-### Notes
+2. `GET /:id`
+- Auth: Yes
+- Path params:
+  - `id` bet ObjectId
 
-- Only bets with status `won` or `draw` are allowed to be settled.
-- Settling does **not** change `status`; it only updates `is_paid`.
+3. `GET /code/:betCode`
+- Auth: Yes
+- Path params:
+  - `betCode` string
 
-## 📝 Notes
+4. `GET /fight/:fightId`
+- Auth: Yes
+- Path params:
+  - `fightId` fight ObjectId
+- Query:
+  - `page` (optional, default `1`)
+  - `limit` (optional, default `10`)
 
-- All protected routes require a valid JWT token in the Authorization header
-- Passwords are automatically hashed using bcrypt
-- The system uses a 5% commission on total bets
-- Odds are calculated automatically based on betting totals
-- Real-time updates are broadcast to all connected clients in the same fight room
+5. `GET /user/:userId`
+- Auth: Yes
+- Path params:
+  - `userId` user ObjectId
+- Query:
+  - `page` (optional, default `1`)
+  - `limit` (optional, default `10`)
 
-## 🤝 Support
+6. `GET /user/:userId/event/:eventId`
+- Auth: Yes
+- Path params:
+  - `userId` user ObjectId
+  - `eventId` event ObjectId
+- Query:
+  - `page` (optional, default `1`)
+  - `limit` (optional, default `10`)
 
-For issues and questions, please contact the development team.
+7. `GET /teller/active-event`
+- Auth: Yes
+- Uses:
+  - `req.user.tellerNo` (or fallback from DB by `req.user.userId`)
+  - active event where `status = ongoing`
+- Query:
+  - `page` (optional, default `1`)
+  - `limit` (optional, default `10`)
 
-## 📄 License
+8. `POST /add`
+- Auth: Yes
+- Body:
+  - `fightId` (required)
+  - `betSide` (required): `meron | wala`
+  - `amount` (required)
+  - `odds` (optional, default `1`)
+  - `bet_code` (optional)
 
-ISC
+9. `PATCH /:id/status`
+- Auth: Yes
+- Path params:
+  - `id` bet ObjectId
+- Body:
+  - `status` (optional)
+  - `payout` (optional)
 
-## 🔧 Insert Version Script
+10. `PATCH /:id/settle`
+- Auth: Yes
+- Path params:
+  - `id` bet ObjectId
+- Body: none
 
-Use this command to insert a version record through the API:
+### Runner Routes (`/api/runners`)
 
-```bash
-npm run version:insert -- <version> <file> [changeLogsCSV] [isLatest]
-```
+1. `GET /items`
+- Auth: Yes
+- Query:
+  - `eventId` (required)
+  - `tellerNo` (required)
 
-Example:
+2. `GET /`
+- Auth: Yes
+- Query:
+  - `status` (optional)
+  - `transactionType` (optional)
+  - `runnerId` (optional)
+  - `tellerId` (optional)
+  - `tellerNo` (optional)
 
-```bash
-npm run version:insert -- 1.0.1 app-release.apk "bug fixes,ui updates" true
-```
+3. `GET /runner/:runnerId`
+- Auth: Yes
+- Path params:
+  - `runnerId` user ObjectId
+- Query:
+  - `status` (optional)
+  - `transactionType` (optional)
 
-- `version` and `file` are required
-- `changeLogsCSV` is optional (comma-separated)
-- `isLatest` is optional (`true` by default)
+4. `GET /teller/:tellerNo`
+- Auth: Yes
+- Path params:
+  - `tellerNo` number
+- Query:
+  - `status` (optional)
+  - `transactionType` (optional)
+
+5. `GET /me/current-event`
+- Auth: Yes
+- Params/body: none
+- Uses:
+  - `req.user.tellerNo` (fallback from DB by `req.user.userId`)
+  - currently active event (`status = ongoing`)
+
+6. `POST /`
+- Auth: Yes
+- Body:
+  - `amount` (required, > 0)
+  - `transactionType` (required): `remit | topup`
+
+7. `POST /topup`
+- Auth: Yes
+- Body:
+  - `amount` (required, > 0)
+
+8. `POST /remittance`
+- Auth: Yes
+- Body:
+  - `amount` (required, > 0)
+
+9. `PUT /assign/:transactionId`
+- Auth: Yes
+- Path params:
+  - `transactionId` runner transaction ObjectId
+- Body:
+  - `runnerId` (required)
+
+10. `GET /summary`
+- Auth: Yes
+- Query:
+  - `tellerNo` (required)
+  - `eventId` (required)
+
+11. `GET /stats/:runnerId`
+- Auth: Yes
+- Path params:
+  - `runnerId` user ObjectId
+
+12. `GET /:id`
+- Auth: Yes
+- Path params:
+  - `id` runner transaction ObjectId
+
+### Guest Routes (`/api/guests`)
+
+1. `GET /event/active`
+- Auth: No
+
+2. `GET /current/:eventId`
+- Auth: No
+- Path params:
+  - `eventId` event ObjectId
+
+### Version Routes (`/api/version`)
+
+1. `POST /`
+- Auth: No
+- Body:
+  - `version` (required)
+  - `file` (required)
+  - `changeLogs` (optional, array of strings)
+  - `isLatest` (optional, boolean, default `true`)
+
+2. `GET /latest`
+- Auth: No
+
+### Misc Route
+
+1. `GET /api/protected`
+- Auth: Yes
+- Returns decoded JWT payload
+
+## Socket Events
+
+Common emitted events used across routes/services:
+- `fight_update`
+- `bet_added`
+- `partial_state_update`
+- `partial_state_cleared`
+
+## Notes
+
+- Money fields in several models use setters/getters that scale/format values.
+- All route definitions are in `routes/*.js`.
+- Model definitions are in `models/*.js`.
