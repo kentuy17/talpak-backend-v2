@@ -60,13 +60,18 @@ const getCurrentEventId = async () => {
 
 const mapTransactionForResponse = (transaction) => {
   const tx = transaction.toObject ? transaction.toObject() : transaction;
-  const tellerNo = tx?.tellerId?.tellerNo ?? null;
+  const tellerNo = tx?.tellerNo ?? tx?.tellerId?.tellerNo ?? null;
 
   return {
     ...tx,
     tellerNo,
     tellerId: undefined
   };
+};
+
+const getActiveEventId = async () => {
+  const activeEvent = await GameEvent.findOne({ status: 'ongoing' }).select('_id');
+  return activeEvent ? activeEvent._id : null;
 };
 
 const getTellerIdByTellerNo = async (tellerNo) => {
@@ -77,6 +82,17 @@ const getTellerIdByTellerNo = async (tellerNo) => {
 
   const teller = await User.findOne({ tellerNo: tellerNoAsNumber }).select('_id');
   return teller ? teller._id : null;
+};
+
+const getRequesterTellerNo = async (req) => {
+  const tokenTellerNo = Number(req?.user?.tellerNo);
+  if (!Number.isNaN(tokenTellerNo)) {
+    return tokenTellerNo;
+  }
+
+  const requester = await User.findById(req?.user?.userId).select('tellerNo').lean();
+  const dbTellerNo = Number(requester?.tellerNo);
+  return Number.isNaN(dbTellerNo) ? null : dbTellerNo;
 };
 
 // Get all transactions
@@ -156,6 +172,34 @@ router.get('/teller/:tellerNo', async (req, res) => {
   }
 });
 
+// Get current active-event transactions for logged-in teller
+router.get('/me/current-event', async (req, res) => {
+  try {
+    const tellerNo = await getRequesterTellerNo(req);
+    if (tellerNo === null) {
+      return res.status(400).json({ message: 'Invalid teller number in token' });
+    }
+
+    const activeEventId = await getActiveEventId();
+    if (!activeEventId) {
+      return res.status(404).json({ message: 'No active event found' });
+    }
+
+    const transactions = await Runner.find({ eventId: activeEventId, tellerNo })
+      .populate('runnerId', 'username tellerNo role')
+      .populate('tellerId', 'username tellerNo role')
+      .sort({ createdAt: -1 });
+
+    res.json({
+      eventId: activeEventId,
+      tellerNo,
+      transactions: transactions.map(mapTransactionForResponse)
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching current event transactions', error });
+  }
+});
+
 // Create a new runner transaction
 router.post('/', async (req, res) => {
   try {
@@ -195,11 +239,14 @@ router.post('/', async (req, res) => {
 
     const eventId = await getCurrentEventId();
 
+    const requesterTellerNo = await getRequesterTellerNo(req);
+
     // Create transaction record
     const transaction = new Runner({
       eventId,
       runnerId: null, // Can be null for unassigned transactions
       tellerId: req.user.userId,
+      tellerNo: requesterTellerNo === null ? 0 : requesterTellerNo,
       amount,
       transactionType,
       status: 'processing' // If assigned, set to processing
@@ -257,6 +304,7 @@ router.post('/topup', async (req, res) => {
       eventId,
       runnerId: req.user.userId,
       tellerId,
+      tellerNo: typeof teller.tellerNo === 'number' ? teller.tellerNo : 0,
       amount,
       transactionType: 'topup',
       status: 'pending'
@@ -332,6 +380,7 @@ router.post('/remittance', async (req, res) => {
       eventId,
       runnerId: null, // Runner will be assigned later
       tellerId: teller._id,
+      tellerNo: typeof teller.tellerNo === 'number' ? teller.tellerNo : 0,
       amount,
       transactionType: 'remit',
       status: 'pending'

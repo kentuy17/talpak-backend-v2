@@ -16,6 +16,11 @@ const runnerSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
+  tellerNo: {
+    type: Number,
+    required: false,
+    default: 0
+  },
   amount: {
     type: Number,
     required: true,
@@ -42,6 +47,7 @@ const runnerSchema = new mongoose.Schema({
 // Index for efficient queries
 runnerSchema.index({ runnerId: 1, createdAt: -1 }, { sparse: true }); // Sparse index allows null values
 runnerSchema.index({ tellerId: 1, createdAt: -1 });
+runnerSchema.index({ eventId: 1, tellerNo: 1, createdAt: -1 });
 runnerSchema.index({ eventId: 1, tellerId: 1, transactionType: 1, status: 1 });
 runnerSchema.index({ transactionType: 1 });
 runnerSchema.index({ status: 1 });
