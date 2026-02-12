@@ -557,6 +557,36 @@ router.get('/stats/:runnerId', async (req, res) => {
   }
 });
 
+// Complete transaction status by ID
+router.patch('/:id/complete', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: 'Invalid transaction ID' });
+    }
+
+    const transaction = await Runner.findByIdAndUpdate(
+      id,
+      { status: 'completed' },
+      { new: true, runValidators: true }
+    )
+      .populate('runnerId', 'username tellerNo role')
+      .populate('tellerId', 'username tellerNo role');
+
+    if (!transaction) {
+      return res.status(404).json({ message: 'Transaction not found' });
+    }
+
+    res.json({
+      message: 'Transaction status updated to completed',
+      transaction: mapTransactionForResponse(transaction)
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error completing transaction status', error });
+  }
+});
+
 
 // Get transaction by ID
 router.get('/:id', async (req, res) => {
