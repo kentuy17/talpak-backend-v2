@@ -141,6 +141,7 @@ The server will start on `http://localhost:3000` (or your configured PORT).
 - `GET /api/bet-history/fight/:fightId` - Get bets for a specific fight (protected)
 - `GET /api/bet-history/user/:userId` - Get bets for a specific user (protected)
 - `GET /api/bet-history/user/:userId/event/:eventId` - Get user bets for a specific event (protected)
+- `GET /api/bet-history/teller/active-event` - Get bets for authenticated teller number in active event (protected)
 - `PATCH /api/bet-history/:id/status` - Update bet status/payout (protected)
 - `PATCH /api/bet-history/:id/settle` - Mark winning/draw bet as settled/paid (protected)
 
@@ -187,6 +188,7 @@ The server will start on `http://localhost:3000` (or your configured PORT).
 ### BetHistory
 - `fightId` (ObjectId, ref: Fight)
 - `userId` (ObjectId, ref: User)
+- `tellerNo` (Number)
 - `betSide` (Enum: meron, wala)
 - `amount` (Number)
 - `payout` (Number)

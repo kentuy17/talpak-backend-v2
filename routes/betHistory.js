@@ -1,5 +1,8 @@
 const express = require('express');
 const BetHistory = require('../models/BetHistory');
+const Fight = require('../models/Fight');
+const GameEvent = require('../models/GameEvent');
+const User = require('../models/User');
 const authMiddleware = require('../middleware/auth');
 const { getIO } = require('../socket/socketServer');
 const { getPartialState } = require('../services/partialStateService');
@@ -145,7 +148,6 @@ router.get('/user/:userId/event/:eventId', async (req, res) => {
     const skip = (page - 1) * limit;
 
     // First, find all fights that belong to this event
-    const Fight = require('../models/Fight');
     const fights = await Fight.find({ eventId }).select('_id');
     const fightIds = fights.map(fight => fight._id);
 
@@ -179,13 +181,70 @@ router.get('/user/:userId/event/:eventId', async (req, res) => {
   }
 });
 
+// Get bets by authenticated tellerNo for active event with pagination
+router.get('/teller/active-event', async (req, res) => {
+  try {
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 10;
+    const skip = (page - 1) * limit;
+
+    const activeEvent = await GameEvent.findOne({ status: 'ongoing' }).select('_id eventName status');
+
+    if (!activeEvent) {
+      return res.status(404).json({ message: 'No active event found' });
+    }
+
+    let tellerNo = Number(req.user.tellerNo);
+
+    if (Number.isNaN(tellerNo)) {
+      const user = await User.findById(req.user.userId).select('tellerNo');
+      tellerNo = user?.tellerNo;
+    }
+
+    if (typeof tellerNo !== 'number' || Number.isNaN(tellerNo)) {
+      return res.status(400).json({ message: 'tellerNo is missing from authenticated user' });
+    }
+
+    const fights = await Fight.find({ eventId: activeEvent._id }).select('_id');
+    const fightIds = fights.map((fight) => fight._id);
+
+    const filter = {
+      tellerNo,
+      fightId: { $in: fightIds }
+    };
+
+    const [bets, total] = await Promise.all([
+      BetHistory.find(filter)
+        .populate('fightId', 'fightNumber meron wala status')
+        .populate('userId', 'username tellerNo role')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit),
+      BetHistory.countDocuments(filter)
+    ]);
+
+    res.json({
+      eventId: activeEvent._id,
+      tellerNo,
+      bets,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching teller bets for active event', error });
+  }
+});
+
 // Create new bet
 router.post('/add', async (req, res) => {
   try {
     const { fightId, betSide, amount, odds, bet_code } = req.body;
 
     // Verify fight exists and is in valid status
-    const Fight = require('../models/Fight');
     const fight = await Fight.findById(fightId);
 
     if (!fight) {
@@ -203,7 +262,6 @@ router.post('/add', async (req, res) => {
     }
 
     // Get user and check credits
-    const User = require('../models/User');
     const user = await User.findById(req.user.userId);
 
     if (!user) {
@@ -223,6 +281,7 @@ router.post('/add', async (req, res) => {
     const bet = new BetHistory({
       fightId,
       userId: req.user.userId,
+      tellerNo: user.tellerNo,
       betSide,
       amount,
       odds: odds ?? 1,

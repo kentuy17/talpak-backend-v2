@@ -11,6 +11,10 @@ const betHistorySchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
+  tellerNo: {
+    type: Number,
+    default: 0
+  },
   betSide: {
     type: String,
     enum: ['meron', 'wala'],
@@ -53,6 +57,7 @@ const betHistorySchema = new mongoose.Schema({
 
 // Index for efficient queries
 betHistorySchema.index({ fightId: 1, userId: 1 });
+betHistorySchema.index({ tellerNo: 1, fightId: 1 });
 betHistorySchema.index({ betCode: 1 }, { sparse: true });
 
 module.exports = mongoose.model('BetHistory', betHistorySchema);

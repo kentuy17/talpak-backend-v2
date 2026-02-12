@@ -7,7 +7,8 @@
     "dev": "nodemon server.js",
     "test": "echo \"Error: no test specified\" && exit 1",
     "test:socket": "node test/socket-test.js",
-    "version:insert": "node scripts/insert-version-api.js"
+    "version:insert": "node scripts/insert-version-api.js",
+    "bethistory:backfill-tellerno": "node scripts/backfill-bethistory-tellerno.js"
   },
   "keywords": [],
   "author": "",
