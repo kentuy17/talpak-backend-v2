@@ -6,6 +6,7 @@ const BetHistory = require('../models/BetHistory');
 const Fight = require('../models/Fight');
 const authMiddleware = require('../middleware/auth');
 const GameEvent = require('../models/GameEvent');
+const { getTellerOnHandByActiveEvent } = require('../services/betService');
 
 const router = express.Router();
 
@@ -350,10 +351,12 @@ router.post('/topup', async (req, res) => {
     // // Update transaction status to completed
     // transaction.status = 'completed';
     // await transaction.save();
+    const { onHand } = await getTellerOnHandByActiveEvent(teller.tellerNo);
 
     res.status(200).json({
       message: 'Topup successful',
       transaction,
+      onHand,
       teller: {
         id: tellerId,
         username: teller.username,
@@ -426,10 +429,12 @@ router.post('/remittance', async (req, res) => {
     // // Update transaction status to completed
     // transaction.status = 'completed';
     await transaction.save();
+    const { onHand } = await getTellerOnHandByActiveEvent(teller.tellerNo);
 
     res.status(200).json({
       message: 'Remittance successful',
       transaction,
+      onHand,
       teller: {
         id: teller._id,
         username: teller.username,
@@ -586,6 +591,25 @@ router.get('/stats/:runnerId', async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ message: 'Error fetching transaction statistics', error });
+  }
+});
+
+// Get pending runner transactions
+router.get('/pending', async (req, res) => {
+  try {
+    const pendingTransactions = await Runner.find({ status: 'pending' })
+      .select('_id')
+      .lean();
+
+    const pendingIds = pendingTransactions.map((transaction) => String(transaction._id));
+
+    res.json({
+      pendingCount: pendingIds.length,
+      pendingIds,
+      serverTime: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching pending transactions', error });
   }
 });
 

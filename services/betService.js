@@ -1,6 +1,8 @@
 const BetHistory = require('../models/BetHistory');
 const Fight = require('../models/Fight');
 const User = require('../models/User');
+const Runner = require('../models/Runner');
+const GameEvent = require('../models/GameEvent');
 
 /**
  * Process all bets for a fight and calculate payouts based on odds
@@ -86,6 +88,104 @@ async function processBetsForFight(fightId) {
   }
 }
 
+const roundToTwo = (value) => Math.round((value + Number.EPSILON) * 100) / 100;
+
+/**
+ * Get teller on-hand amount for active event.
+ * onHand = (total_bets - total_payout) - (total_topups - total_remittances)
+ * @param {number|string} tellerNo
+ * @returns {Promise<Object>}
+ */
+async function getTellerOnHandByActiveEvent(tellerNo) {
+  const tellerNoAsNumber = Number(tellerNo);
+
+  if (Number.isNaN(tellerNoAsNumber)) {
+    throw new Error('Invalid tellerNo');
+  }
+
+  const activeEvent = await GameEvent.findOne({ status: 'ongoing' }).select('_id').lean();
+
+  if (!activeEvent) {
+    return {
+      eventId: null,
+      tellerNo: tellerNoAsNumber,
+      totalBets: 0,
+      totalPayout: 0,
+      totalTopups: 0,
+      totalRemittances: 0,
+      onHand: 0
+    };
+  }
+
+  const fights = await Fight.find({ eventId: activeEvent._id }).select('_id').lean();
+  const fightIds = fights.map((fight) => fight._id);
+
+  let totalBets = 0;
+  let totalPayout = 0;
+
+  if (fightIds.length > 0) {
+    const [betTotals] = await BetHistory.aggregate([
+      {
+        $match: {
+          tellerNo: tellerNoAsNumber,
+          fightId: { $in: fightIds }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          totalBets: { $sum: '$amount' },
+          totalPayout: { $sum: '$payout' }
+        }
+      }
+    ]);
+
+    // BetHistory monetary fields are stored in cents in MongoDB.
+    totalBets = roundToTwo((betTotals?.totalBets || 0) / 100);
+    totalPayout = roundToTwo((betTotals?.totalPayout || 0) / 100);
+  }
+
+  const runnerTotals = await Runner.aggregate([
+    {
+      $match: {
+        eventId: activeEvent._id,
+        tellerNo: tellerNoAsNumber,
+        status: 'completed',
+        transactionType: { $in: ['topup', 'remit'] }
+      }
+    },
+    {
+      $group: {
+        _id: '$transactionType',
+        total: { $sum: '$amount' }
+      }
+    }
+  ]);
+
+  const totalsMap = runnerTotals.reduce((acc, item) => {
+    acc[item._id] = item.total;
+    return acc;
+  }, {});
+
+  const totalTopups = roundToTwo(totalsMap.topup || 0);
+  const totalRemittances = roundToTwo(totalsMap.remit || 0);
+
+  const onHand = roundToTwo(
+    (totalBets - totalPayout) - (totalTopups - totalRemittances)
+  );
+
+  return {
+    eventId: activeEvent._id,
+    tellerNo: tellerNoAsNumber,
+    totalBets,
+    totalPayout,
+    totalTopups,
+    totalRemittances,
+    onHand
+  };
+}
+
 module.exports = {
-  processBetsForFight
+  processBetsForFight,
+  getTellerOnHandByActiveEvent
 };
