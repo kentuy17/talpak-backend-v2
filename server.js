@@ -58,7 +58,7 @@ app.get('/api/protected', authMiddleware, (req, res) => {
 });
 
 // Log all endpoints
-console.log(listEndpoints(app));
+// console.log(listEndpoints(app));
 
 // Guest route
 app.use('/api/guests', guestRoutes);

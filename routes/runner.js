@@ -18,7 +18,7 @@ router.get('/items', async (req, res) => {
   try {
     const { eventId, tellerNo } = req.query;
 
-    console.log(req.params);
+    // console.log(req.params);
 
 
     if (!eventId || !tellerNo) {
@@ -160,7 +160,7 @@ router.get('/teller/:tellerNo', async (req, res) => {
     const skip = (page - 1) * limit;
     const tellerNoAsNumber = Number(tellerNo);
 
-    console.log({ params: req.params, user: req.user });
+    // console.log({ params: req.params, user: req.user });
 
     if (Number.isNaN(tellerNoAsNumber)) {
       return res.status(400).json({ message: 'Invalid tellerNo' });

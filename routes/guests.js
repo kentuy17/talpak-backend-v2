@@ -1,5 +1,6 @@
 require('dotenv');
 const express = require('express');
+const listEndpoints = require('express-list-endpoints');
 const Fight = require('../models/Fight');
 const GameEvent = require('../models/GameEvent');
 const { getIO } = require('../socket/socketServer');
@@ -27,6 +28,16 @@ router.get('/event/active', async (req, res) => {
   } catch (error) {
     console.log(error);
     res.status(500).json({ message: 'Error fetching active event', error });
+  }
+});
+
+// List all API endpoints from the running app
+router.get('/endpoints', async (req, res) => {
+  try {
+    const endpoints = listEndpoints(req.app);
+    res.json({ endpoints });
+  } catch (error) {
+    res.status(500).json({ message: 'Error listing endpoints', error });
   }
 });
 

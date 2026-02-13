@@ -416,17 +416,34 @@ Base URL examples assume default server: `http://localhost:3000`.
 - Path params:
   - `runnerId` user ObjectId
 
-12. `GET /:id`
+12. `GET /pending`
+- Auth: Yes
+- Query: none
+- Returns:
+  - `pendingCount`
+  - `pendingIds` (array of runner transaction ObjectId strings)
+  - `serverTime` (ISO timestamp)
+
+13. `PATCH /:id/complete`
+- Auth: Yes
+- Path params:
+  - `id` runner transaction ObjectId
+- Body: none
+
+14. `GET /:id`
 - Auth: Yes
 - Path params:
   - `id` runner transaction ObjectId
 
 ### Guest Routes (`/api/guests`)
 
-1. `GET /event/active`
+1. `GET /endpoints`
 - Auth: No
 
-2. `GET /current/:eventId`
+2. `GET /event/active`
+- Auth: No
+
+3. `GET /current/:eventId`
 - Auth: No
 - Path params:
   - `eventId` event ObjectId

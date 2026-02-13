@@ -11,7 +11,7 @@ const JWT_SECRET = process.env.JWT_SECRET;
 // Register
 router.post('/register', async (req, res) => {
   try {
-    console.log(req.body, 'body');
+    // console.log(req.body, 'body');
 
     const { username, password, tellerNo, role } = req.body;
 
