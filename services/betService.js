@@ -92,7 +92,7 @@ const roundToTwo = (value) => Math.round((value + Number.EPSILON) * 100) / 100;
 
 /**
  * Get teller on-hand amount for active event.
- * onHand = (total_bets - total_payout) - (total_topups - total_remittances)
+ * onHand = (total_bets - total_payout) + (total_topups - total_remittances)
  * @param {number|string} tellerNo
  * @returns {Promise<Object>}
  */
