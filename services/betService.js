@@ -170,8 +170,9 @@ async function getTellerOnHandByActiveEvent(tellerNo) {
   const totalTopups = roundToTwo(totalsMap.topup || 0);
   const totalRemittances = roundToTwo(totalsMap.remit || 0);
 
+  // (cashin - cashout) + (topup - remit)
   const onHand = roundToTwo(
-    (totalBets - totalPayout) - (totalTopups - totalRemittances)
+    (totalBets - totalPayout) + (totalTopups - totalRemittances)
   );
 
   return {
